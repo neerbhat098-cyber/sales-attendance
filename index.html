@@ -1,0 +1,1066 @@
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <title>Sales Attendance System</title>
+        
+
+        <link rel="stylesheet" href="style.css">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    </head>
+
+    <body>
+
+        <!-- ================= LOGIN ================= -->
+
+        <section id="loginScreen" class="login-screen">
+
+            <div class="login-card">
+
+                <div class="logo">
+                    📍
+                </div>
+
+                <h1>Sales Attendance</h1>
+                <p class="login-subtitle">
+                    Attendance & Leave Management
+                </p>
+
+                <form id="loginForm">
+
+                    <label>Email</label>
+
+                    <input
+                        type="email"
+                        id="loginEmail"
+                        placeholder="Enter email"
+                        required
+                    >
+
+                    <label>Password</label>
+
+                    <input
+                        type="password"
+                        id="loginPassword"
+                        placeholder="Enter password"
+                        required
+                    >
+
+                    <button type="submit" class="primary-btn">
+                        Login
+                    </button>
+
+                </form>
+
+                <div class="demo-login">
+                    <strong>Demo accounts</strong>
+
+                    <p>Admin: admin@example.com / admin123</p>
+                    <p>Employee: john@example.com / 123456</p>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= APPLICATION ================= -->
+
+        <section id="appScreen" class="app-screen hidden">
+
+            <!-- SIDEBAR -->
+
+            <aside class="sidebar">
+
+                <div class="brand">
+                    <span>📍</span>
+                    <div>
+                        <strong>SalesTrack</strong>
+                        <small>Attendance</small>
+                    </div>
+                </div>
+
+                <nav>
+
+                    <button
+                        class="nav-item active"
+                        data-page="dashboard"
+                    >
+                        🏠 Dashboard
+                    </button>
+
+                    <button
+                        class="nav-item"
+                        data-page="attendance"
+                    >
+                        🕘 Attendance
+                    </button>
+
+                    <button
+                        class="nav-item"
+                        data-page="leave"
+                    >
+                        📝 Leave
+                    </button>
+
+                    <button
+                        class="nav-item admin-only"
+                        data-page="employees"
+                    >
+                        👥 Employees
+                    </button>
+
+                    <button
+                        class="nav-item admin-only"
+                        data-page="adminLeaves"
+                    >
+                        ✅ Leave Approval
+                    </button>
+
+                    <button
+                        class="nav-item admin-only"
+                        data-page="reports"
+                    >
+                        📊 Reports
+                    </button>
+
+                    <button
+                        class="nav-item admin-only"
+                        data-page="settings"
+                    >
+                        ⚙️ Settings
+                    </button>
+
+                </nav>
+
+
+
+            </aside>
+
+
+            <!-- MAIN -->
+
+            <main class="main-content">
+
+                <!-- TOP BAR -->
+
+                <header class="topbar">
+
+                    <div>
+                        <h2>
+    Dashboard
+    <button id="refreshDataBtn" class="refresh-icon-btn" title="Refresh data">↻</button>
+</h2>
+
+                        <p id="currentDate">
+                        </p>
+                    </div>
+
+                    <!-- WRAPPER FOR PROFILE DROPDOWN -->
+<div class="user-profile-wrapper" style="position: relative; display: inline-block;">
+
+    <!-- Clickable Profile Trigger (Replaces old .user-area) -->
+    <div class="user-area" id="profileTrigger" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+
+        <div class="user-avatar" id="userAvatar">
+            U
+        </div>
+
+        <div>
+            <strong id="loggedUserName">
+                User
+            </strong>
+
+            <small id="loggedUserRole">
+                Employee
+            </small>
+        </div>
+        
+        <span style="font-size: 10px; color: #666; margin-left: 4px;">▼</span>
+
+    </div>
+
+
+     <!-- Dropdown Menu containing Upload & Logout -->
+    <div id="profileDropdown" class="hidden" style="position: absolute; right: 0; top: 100%; margin-top: 8px; background: white; border: 1px solid #ddd; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 6px; padding: 6px; min-width: 160px; z-index: 1000;">
+        
+        <!-- Hidden File Input -->
+        <input type="file" id="profilePhotoInput" accept="image/*" style="display: none;">
+        
+        <!-- Clickable Option to Trigger Photo Upload -->
+        <label for="profilePhotoInput" style="display: block; padding: 8px 12px; cursor: pointer; color: #333; font-weight: 500; border-bottom: 1px solid #eee; font-size: 14px; border-radius: 4px;">
+            📷 Change Photo
+        </label>
+
+        <button id="logoutBtn" class="logout-btn" style="width: 100%; text-align: left; background: none; border: none; padding: 8px 12px; cursor: pointer; color: #dc3545; font-weight: 500; border-radius: 4px; margin-top: 4px;">
+            🚪 Logout
+        </button>
+    </div>
+
+</div>
+
+                </header>
+
+
+                <!-- ================= DASHBOARD ================= -->
+
+                <section id="dashboardPage" class="page">
+
+                    <div class="welcome-card">
+
+                        <div>
+
+                            <p class="muted">
+                                Welcome back
+                            </p>
+
+                            <h1 id="welcomeName">
+                                User
+                            </h1>
+
+                            <p>
+                                Manage your attendance and leave.
+                            </p>
+
+                        </div>
+
+                        <div class="today-date">
+                            <span>Today</span>
+                            <strong id="dashboardDate">
+                            </strong>
+                        </div>
+
+                    </div>
+
+
+                    <div class="stats-grid">
+
+                        <div class="stat-card">
+
+                            <div class="stat-icon blue">
+                                🕘
+                            </div>
+
+                            <div>
+                                <span>Today's Status</span>
+                                <strong id="todayStatus">
+                                    Not Started
+                                </strong>
+                            </div>
+
+                        </div>
+
+
+                        <div class="stat-card">
+
+                            <div class="stat-icon green">
+                                ⏱️
+                            </div>
+
+                            <div>
+                                <span>Working Time</span>
+                                <strong id="workingTime">
+                                    00:00
+                                </strong>
+                            </div>
+
+                        </div>
+
+
+                        <div class="stat-card">
+
+                            <div class="stat-icon orange">
+                                📝
+                            </div>
+
+                            <div>
+                                <span>Pending Leaves</span>
+                                <strong id="pendingLeaveCount">
+                                    0
+                                </strong>
+                            </div>
+
+                        </div>
+
+
+                        <div class="stat-card">
+
+                            <div class="stat-icon purple">
+                                📅
+                            </div>
+
+                            <div>
+                                <span>This Month</span>
+                                <strong id="monthlyPresent">
+                                    0 Days
+                                </strong>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ATTENDANCE ACTION -->
+
+                    <div class="section-card">
+
+                        <div class="section-header">
+
+                            <div>
+
+                                <h3>Today's Attendance</h3>
+
+                                <p>
+                                    Location permission is required
+                                    for attendance.
+                                </p>
+
+                            </div>
+
+                            <span id="attendanceBadge"
+                                  class="status-badge gray">
+                                NOT STARTED
+                            </span>
+
+                        </div>
+
+
+                        <div class="attendance-action">
+
+                            <div class="location-box">
+
+                                <span class="location-icon">
+                                    📍
+                                </span>
+
+                                <div>
+
+                                    <strong>
+                                        Location
+                                    </strong>
+
+                                    <p id="locationStatus">
+                                        Waiting for attendance
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="attendance-buttons">
+
+                                <button
+                                    id="startDayBtn"
+                                    class="success-btn"
+                                >
+                                    🟢 Start Day
+                                </button>
+
+                                <button
+                                    id="endDayBtn"
+                                    class="danger-btn"
+                                    disabled
+                                >
+                                    🔴 End Day
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- RECENT ATTENDANCE -->
+
+                    <div class="section-card">
+
+                        <div class="section-header">
+
+                            <div>
+
+                                <h3>Recent Attendance</h3>
+
+                                <p>
+                                    Your latest attendance records
+                                </p>
+
+                            </div>
+
+                            <button
+                                class="text-btn"
+                                data-page-link="attendance"
+                            >
+                                View All →
+                            </button>
+
+                        </div>
+
+                        <div id="recentAttendance">
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- ================= ATTENDANCE PAGE ================= -->
+
+                <section id="attendancePage" class="page hidden">
+
+                    <div class="section-card">
+
+                        <div class="section-header">
+
+                            <div>
+                                <h3>Attendance History</h3>
+                                <p>
+                                    View your attendance records.
+                                </p>
+                            </div>
+
+                            <button
+                                id="exportAttendanceBtn"
+                                class="secondary-btn"
+                            >
+                                📥 Export CSV
+                            </button>
+
+                        </div>
+
+                        <div class="table-container">
+
+                            <table>
+
+                                <thead>
+
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Start</th>
+                                        <th>End</th>
+                                        <th>Working Time</th>
+                                        <th>Location</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+
+                                    </tr>
+
+                                </thead>
+
+                                <tbody id="attendanceTableBody">
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- ================= LEAVE PAGE ================= -->
+
+                <section id="leavePage" class="page hidden">
+
+                    <div class="two-column">
+
+                        <div class="section-card">
+
+                            <div class="section-header">
+
+                                <div>
+                                    <h3>Apply for Leave</h3>
+                                    <p>
+                                        Submit a new leave request.
+                                    </p>
+                                </div>
+
+                            </div>
+
+
+                            <form id="leaveForm">
+
+                                <label>Leave Type</label>
+
+                                <select id="leaveType" required>
+
+                                    <option value="">
+                                        Select leave type
+                                    </option>
+
+                                    <option value="Casual Leave">
+                                        Casual Leave
+                                    </option>
+
+                                    <option value="Sick Leave">
+                                        Sick Leave
+                                    </option>
+
+                                    <option value="Annual Leave">
+                                        Annual Leave
+                                    </option>
+
+                                    <option value="Emergency Leave">
+                                        Emergency Leave
+                                    </option>
+
+                                    <option value="Unpaid Leave">
+                                        Unpaid Leave
+                                    </option>
+
+                                </select>
+
+
+                                <label>Start Date</label>
+
+                                <input
+                                    type="date"
+                                    id="leaveStartDate"
+                                    required
+                                >
+
+
+                                <label>End Date</label>
+
+                                <input
+                                    type="date"
+                                    id="leaveEndDate"
+                                    required
+                                >
+
+
+                                <label>Reason</label>
+
+                                <textarea
+                                    id="leaveReason"
+                                    rows="4"
+                                    placeholder="Enter reason..."
+                                    required
+                                ></textarea>
+
+
+                                <button
+                                    type="submit"
+                                    class="primary-btn"
+                                >
+                                    Submit Leave Request
+                                </button>
+
+                            </form>
+
+                        </div>
+
+
+                        <div class="section-card">
+
+                            <div class="section-header">
+
+                                <div>
+                                    <h3>My Leave Requests</h3>
+                                    <p>
+                                        Track your leave applications.
+                                    </p>
+                                </div>
+
+                            </div>
+
+                            <div id="myLeaveList">
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- ================= EMPLOYEES ================= -->
+
+                <section id="employeesPage"
+                         class="page hidden">
+
+                    <div class="section-card">
+
+                        <div class="section-header">
+
+                            <div>
+                                <h3>Employees</h3>
+                                <p>
+                                    Manage your sales team.
+                                </p>
+                            </div>
+
+                            <button
+                                id="addEmployeeBtn"
+                                class="primary-btn"
+                            >
+                                + Add Employee
+                            </button>
+
+                        </div>
+
+                        <div class="table-container">
+
+                            <table>
+
+                                <thead>
+
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Department</th>
+                                        <th>Password</th>
+                                        <th>Status</th>
+                                    </tr>
+
+                                </thead>
+
+                                <tbody id="employeesTableBody">
+                                </tbody>
+
+                            </table>
+                            <table>
+    <thead>
+        <tr>
+            <th>Admin ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+        </tr>
+    </thead>
+
+    <tbody id="adminUsersTableBody"></tbody>
+</table>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- ================= ADMIN LEAVES ================= -->
+
+                <section id="adminLeavesPage"
+                         class="page hidden">
+
+                    <div class="section-card">
+
+                        <div class="section-header">
+
+                            <div>
+                                <h3>Leave Approval</h3>
+                                <p>
+                                    Review employee leave requests.
+                                </p>
+                            </div>
+
+                        </div>
+
+                        <div class="table-container">
+
+                            <table>
+
+                                <thead>
+
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Leave Type</th>
+                                        <th>Date</th>
+                                        <th>Reason</th>
+                                        <th>Applied</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+
+                                </thead>
+
+                                <tbody id="adminLeaveTableBody">
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- ================= REPORTS ================= -->
+
+                <section id="reportsPage"
+                         class="page hidden">
+
+                    <div class="section-card">
+
+                        <div class="section-header">
+
+                            <div>
+
+                                <h3>Reports</h3>
+
+                                <p>
+                                    Export attendance data.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="filter-grid">
+
+                            <div>
+
+                                <label>From Date</label>
+
+                                <input
+                                    type="date"
+                                    id="reportFrom"
+                                >
+
+                            </div>
+
+                            <div>
+
+                                <label>To Date</label>
+
+                                <input
+                                    type="date"
+                                    id="reportTo"
+                                >
+
+                            </div>
+
+                            <div>
+
+                                <label>Employee</label>
+
+                                <select id="reportEmployee">
+                                    <option value="all">
+                                        All Employees
+                                    </option>
+                                </select>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="report-buttons">
+
+                            <button
+                                id="generateReportBtn"
+                                class="primary-btn"
+                            >
+                                Generate Report
+                            </button>
+
+                            <button
+                                id="exportReportBtn"
+                                class="secondary-btn"
+                            >
+                                📥 Download Excel-Compatible CSV
+                            </button>
+
+                        </div>
+
+
+                        <div id="reportResult">
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- ================= SETTINGS ================= -->
+
+                <section id="settingsPage"
+         class="page hidden">
+
+    <div class="section-card">
+
+        <div class="section-header">
+
+            <div>
+                <h3>System Settings</h3>
+
+                <p>
+                    Configure attendance rules for your sales team.
+                </p>
+            </div>
+
+        </div>
+
+
+        <div class="settings-grid">
+
+            <!-- AUTO CLOSE -->
+
+            <div class="setting-item">
+
+                <label>
+                    Auto Close Time
+                </label>
+
+                <input
+                    type="time"
+                    id="autoCloseTime"
+                    value="23:59"
+                >
+
+                <small>
+                    Active attendance will automatically close
+                    at this time.
+                </small>
+
+            </div>
+
+
+            <!-- LOCATION INTERVAL -->
+
+            <div class="setting-item">
+
+                <label>
+                    Location Tracking Interval
+                </label>
+
+                <select id="locationInterval">
+
+                    <option value="1">
+                        Every 1 minute
+                    </option>
+
+                    <option value="5" selected>
+                        Every 5 minutes
+                    </option>
+
+                    <option value="10">
+                        Every 10 minutes
+                    </option>
+
+                    <option value="15">
+                        Every 15 minutes
+                    </option>
+
+                </select>
+
+                <small>
+                    Controls how frequently employee location
+                    records are saved while attendance is active.
+                </small>
+
+            </div>
+
+
+            <!-- REQUIRE LOCATION -->
+
+            <div class="setting-item">
+
+                <label>
+                    Require Location for Attendance
+                </label>
+
+                <select id="requireLocation">
+
+                    <option value="true" selected>
+                        Yes
+                    </option>
+
+                    <option value="false">
+                        No
+                    </option>
+
+                </select>
+
+                <small>
+                    When enabled, employees must allow location
+                    access before starting attendance.
+                </small>
+
+            </div>
+
+
+            <!-- BACKDATED LEAVE -->
+
+            <div class="setting-item">
+
+                <label>
+                    Allow Backdated Leave
+                </label>
+
+                <select id="allowBackdatedLeave">
+
+                    <option value="true" selected>
+                        Yes
+                    </option>
+
+                    <option value="false">
+                        No
+                    </option>
+
+                </select>
+
+                <small>
+                    Controls whether employees can request leave
+                    for previous dates.
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <button
+            id="saveSettingsBtn"
+            class="primary-btn"
+        >
+            Save Settings
+        </button>
+
+    </div>
+
+</section>
+
+
+            </main>
+
+        </section>
+
+
+        <!-- ================= MODAL ================= -->
+
+        <div
+            id="employeeModal"
+            class="modal hidden"
+        >
+
+            <div class="modal-content">
+
+                <div class="modal-header">
+
+                    <h3>Add Employee</h3>
+
+                    <button id="closeEmployeeModal">
+                        ×
+                    </button>
+
+                </div>
+
+                <form id="employeeForm">
+
+    <label>User Type</label>
+
+    <select id="employeeRole" required>
+
+        <option value="EMPLOYEE">
+            Employee
+        </option>
+
+        <option value="ADMIN">
+            Admin
+        </option>
+
+    </select>
+
+
+
+                    <label>Full Name</label>
+
+                    <input
+                        id="employeeName"
+                        required
+                        placeholder="John Smith"
+                    >
+
+
+                    <label>Email</label>
+
+                    <input
+                        type="email"
+                        id="employeeEmail"
+                        required
+                        placeholder="john@example.com"
+                    >
+
+
+                    <label>Department</label>
+
+                    <input
+                        id="employeeDepartment"
+                        value="Sales"
+                    >
+                    <label>Password</label>
+
+    <div class="password-input">
+        <input
+            type="password"
+            id="employeePassword"
+            placeholder="Enter password"
+            required
+        >
+
+        <button
+            type="button"
+            onclick="togglePassword()"
+            class="show-password"
+        >
+            Show
+        </button>
+    </div>
+
+
+                    <button
+                        type="submit"
+                        class="primary-btn"
+                    >
+                        Save Employee
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+        <!-- ATTENDANCE LOCATION MAP -->
+<div id="attendanceMapModal" class="modal hidden">
+    <div class="modal-content attendance-map-content">
+        <div class="modal-header">
+            <h3>Attendance Location History</h3>
+            <button id="closeAttendanceMap" type="button">×</button>
+        </div>
+
+        <p id="attendanceMapInfo">
+            Loading location history...
+        </p>
+
+        <div id="attendanceMap"></div>
+
+        <div id="attendanceLocationList"></div>
+    </div>
+</div>
+
+        <!-- ================= TOAST ================= -->
+
+        <div
+            id="toast"
+            class="toast"
+        ></div>
+
+
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js"></script>
+
+
+
+    </body>
+    </html>

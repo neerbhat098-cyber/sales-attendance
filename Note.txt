@@ -1,0 +1,722 @@
+Create Account in Supabase
+
+link: https://supabase.com/dashboard/org/
+
+Create Table
+
+
+Sales Attendance System — Start Day / End Day Issue
+1. Current Situation
+
+The attendance system is connected to Supabase.
+
+There are two types of users:
+
+EMPLOYEE / Sales Person
+
+ADMIN / System Admin
+
+The important behavior currently is:
+
+Sales person → Start Day works.
+
+Sales person → End Day works.
+
+System Admin → Start Day works.
+
+System Admin → End Day does NOT properly record/update the ending details.
+
+Therefore, the problem appears to be specific to the System Admin attendance record, ID matching, or admin-specific database data rather than the general End Day functionality.
+
+2. Supabase Configuration
+
+The application uses:
+
+const SUPABASE_URL =
+    "https://ipcukyillmcyveovtsvc.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY =
+    "YOUR_PUBLISHABLE_KEY";
+
+const supabaseClient =
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_PUBLISHABLE_KEY
+    );
+
+
+The application loads:
+
+users
+
+employees
+
+attendance
+
+leaves
+
+system settings
+
+from Supabase.
+
+3. Important User IDs
+
+The default System Admin is:
+
+{
+    id: "ADM001",
+    name: "System Admin",
+    email: "admin@example.com",
+    password: "admin123",
+    role: "ADMIN"
+}
+
+
+The normal employee is:
+
+{
+    id: "EMP001",
+    name: "John Smith",
+    email: "john@example.com",
+    password: "123456",
+    role: "EMPLOYEE"
+}
+
+
+However, the application now loads users from Supabase:
+
+await loadUsersFromDatabase();
+
+
+Therefore, the users table in Supabase is the actual source used after application startup.
+
+4. Important Attendance Matching Logic
+
+Today's attendance is found with:
+
+function getTodayAttendance() {
+
+    if (!currentUser) {
+        return null;
+    }
+
+    return attendance.find(
+        item =>
+            (item.employeeId || item.employee_id) === currentUser.id &&
+            (item.workDate || item.work_date) === todayString()
+    );
+}
+
+
+This means the System Admin must have an attendance record where:
+
+employee_id = ADM001
+
+
+and:
+
+work_date = today's date
+
+
+If the System Admin attendance record uses a different employee ID, getTodayAttendance() will return null.
+
+5. Start Day Flow
+
+When Start Day is pressed:
+
+const existing = getTodayAttendance();
+
+if (existing) {
+    showToast(
+        "Attendance has already started."
+    );
+    return;
+}
+
+
+Then browser geolocation is requested.
+
+A record is created:
+
+const record = {
+
+    id: crypto.randomUUID(),
+
+    employeeId: currentUser.id,
+
+    employeeName: currentUser.name,
+
+    workDate: todayString(),
+
+    startTime: now.toISOString(),
+
+    startLatitude:
+        position.coords.latitude,
+
+    startLongitude:
+        position.coords.longitude,
+
+    startAccuracy:
+        position.coords.accuracy,
+
+    startAddress:
+        "Coordinates recorded",
+
+    endTime: null,
+
+    endLatitude: null,
+
+    endLongitude: null,
+
+    endAccuracy: null,
+
+    endAddress: null,
+
+    status: "ACTIVE",
+
+    endType: null,
+
+    totalWorkMinutes: 0,
+
+    locations: []
+
+};
+
+
+Then it is inserted into Supabase.
+
+The important database values are:
+
+employee_id
+employee_name
+work_date
+start_time
+start_latitude
+start_longitude
+start_accuracy
+start_address
+end_time
+end_latitude
+end_longitude
+end_accuracy
+end_address
+status
+end_type
+total_work_minutes
+
+6. End Day Flow
+
+When End Day is pressed:
+
+function endDay() {
+
+    const record = getTodayAttendance();
+
+    if (!record) {
+
+        showToast(
+            "Today's attendance has not started."
+        );
+
+        return;
+    }
+
+    if (record.status !== "ACTIVE") {
+
+        showToast(
+            "Attendance is already closed."
+        );
+
+        return;
+    }
+
+    // ...
+}
+
+
+The application then gets the final location and creates:
+
+record.endTime =
+    now.toISOString();
+
+record.status =
+    "COMPLETED";
+
+record.endType =
+    "MANUAL";
+
+record.totalWorkMinutes =
+    calculateMinutes(
+        record.startTime,
+        record.endTime
+    );
+
+
+Then it updates Supabase:
+
+const attendanceUpdate = {
+
+    end_time:
+        record.endTime,
+
+    end_latitude:
+        record.endLatitude || null,
+
+    end_longitude:
+        record.endLongitude || null,
+
+    end_accuracy:
+        record.endAccuracy || null,
+
+    end_address:
+        record.endAddress || null,
+
+    status:
+        record.status,
+
+    end_type:
+        record.endType,
+
+    total_work_minutes:
+        record.totalWorkMinutes,
+
+    updated_at:
+        now.toISOString()
+};
+
+
+The database update is:
+
+const { data, error } =
+    await supabaseClient
+        .from("attendance")
+        .update(attendanceUpdate)
+        .eq("id", record.id)
+        .select()
+        .single();
+
+
+Since the normal salesperson's End Day works, this update mechanism is probably generally valid.
+
+7. Most Likely Problem
+
+Because:
+
+Salesperson Start Day       → works
+Salesperson End Day         → works
+System Admin Start Day      → works
+System Admin End Day        → fails
+
+
+the first thing to investigate is the System Admin attendance record.
+
+The most likely possibilities are:
+
+currentUser.id for System Admin is not actually ADM001.
+
+The System Admin attendance row has a different employee_id.
+
+getTodayAttendance() cannot find the System Admin's row.
+
+The System Admin record has an unexpected status.
+
+The Supabase attendance row ID does not match the frontend record.id.
+
+A Supabase RLS policy is treating the admin record differently.
+
+The database update succeeds but the UI/table is rendering stale data.
+
+8. First Debugging Step
+
+Do NOT rewrite the entire End Day function yet.
+
+Add this line inside endDay() immediately after:
+
+const record = getTodayAttendance();
+
+
+Add:
+
+console.log("END DAY RECORD:", record);
+
+
+So it becomes:
+
+function endDay() {
+
+    const record = getTodayAttendance();
+
+    console.log("END DAY RECORD:", record);
+
+    if (!record) {
+
+        showToast(
+            "Today's attendance has not started."
+        );
+
+        return;
+    }
+
+    // rest of code
+}
+
+9. Debug the System Admin User
+
+Inside startDay(), immediately before the attendance record is created, add:
+
+console.log("SYSTEM USER:", currentUser);
+
+
+Then after:
+
+const record = {
+
+
+temporarily add:
+
+console.log(
+    "SYSTEM ADMIN ATTENDANCE:",
+    record
+);
+
+
+The expected result should look similar to:
+
+SYSTEM USER:
+{
+    id: "ADM001",
+    name: "System Admin",
+    role: "ADMIN"
+}
+
+
+and:
+
+SYSTEM ADMIN ATTENDANCE:
+{
+    id: "...",
+    employeeId: "ADM001",
+    employeeName: "System Admin",
+    workDate: "2026-10-07",
+    startTime: "...",
+    status: "ACTIVE"
+}
+
+10. What the Console Results Mean
+Case A — END DAY RECORD: null
+
+This means:
+
+getTodayAttendance()
+
+
+cannot find the System Admin's attendance.
+
+The problem is probably an ID or date mismatch.
+
+We need to compare:
+
+currentUser.id
+
+
+with:
+
+attendance.employee_id
+
+
+and:
+
+current date
+
+
+with:
+
+attendance.work_date
+
+Case B — The record appears but Supabase reports an error
+
+Then the problem is probably:
+
+RLS
+
+database permissions
+
+invalid column
+
+UUID mismatch
+
+database constraint
+
+The exact Supabase console error will tell us which one.
+
+Case C — The record appears and Supabase update succeeds
+
+Then the End Day database operation is working.
+
+In that case the remaining problem is the frontend table/rendering.
+
+11. Improve the Supabase Update Debugging
+
+Instead of:
+
+.select()
+.single();
+
+
+temporarily use:
+
+const { data, error } =
+    await supabaseClient
+        .from("attendance")
+        .update(attendanceUpdate)
+        .eq("id", record.id)
+        .select()
+        .maybeSingle();
+
+if (error) {
+
+    console.error(
+        "END DAY SUPABASE ERROR:",
+        error
+    );
+
+    showToast(
+        "Database error while ending attendance."
+    );
+
+    return;
+}
+
+if (!data) {
+
+    console.error(
+        "NO ROW UPDATED. Attendance ID:",
+        record.id
+    );
+
+    showToast(
+        "Attendance record was not found in database."
+    );
+
+    return;
+}
+
+console.log(
+    "END DAY DATABASE SUCCESS:",
+    data
+);
+
+
+This will clearly tell us whether Supabase actually updated a row.
+
+12. What to Check in Supabase
+
+Open:
+
+Supabase
+→ Table Editor
+→ attendance
+
+
+After System Admin presses Start Day, find today's record.
+
+Check:
+
+employee_id
+employee_name
+work_date
+start_time
+status
+id
+
+
+For System Admin we expect:
+
+employee_id: ADM001
+employee_name: System Admin
+work_date: today's date
+status: ACTIVE
+
+
+After End Day, we expect:
+
+end_time: [actual ending timestamp]
+status: COMPLETED
+end_type: MANUAL
+total_work_minutes: [calculated minutes]
+
+13. Important Separate Issue — Auto Close
+
+There is also another issue in the current code.
+
+autoCloseAttendance() modifies the local JavaScript object:
+
+record.endTime =
+    end.toISOString();
+
+record.status =
+    "AUTO_CLOSED";
+
+record.endType =
+    "AUTO_MIDNIGHT";
+
+record.totalWorkMinutes =
+    calculateMinutes(
+        record.startTime,
+        record.endTime
+    );
+
+
+But it does NOT update the Supabase attendance table.
+
+It only later calls:
+
+saveStorage(
+    "sales_attendance",
+    attendance
+);
+
+
+Therefore:
+
+Manual End Day
+→ Supabase update exists
+
+Auto Midnight Close
+→ Supabase update is currently missing
+
+
+This should be fixed after the System Admin manual End Day issue is solved.
+
+14. Another Separate Issue — Location Tracking
+
+startLocationTracking() updates:
+
+record.lastLatitude
+record.lastLongitude
+record.lastAccuracy
+
+
+but currently only saves:
+
+saveStorage(
+    "sales_attendance",
+    attendance
+);
+
+
+It does not update the corresponding Supabase row.
+
+So continuous location tracking is also currently local-only.
+
+This should be synchronized with Supabase later.
+
+15. Correct Development Order
+
+Do not change everything at once.
+
+The recommended order is:
+
+Step 1
+
+Debug System Admin End Day.
+
+Add:
+
+console.log("SYSTEM USER:", currentUser);
+
+
+and:
+
+console.log("END DAY RECORD:", record);
+
+Step 2
+
+Test:
+
+System Admin
+→ Start Day
+→ End Day
+
+Step 3
+
+Check the browser console.
+
+Step 4
+
+Check the corresponding Supabase attendance row.
+
+Step 5
+
+Fix the exact problem discovered.
+
+Step 6
+
+After manual End Day works for both:
+
+EMPLOYEE
+ADMIN
+
+
+fix the midnight auto-close Supabase update.
+
+Step 7
+
+Then synchronize location tracking with Supabase.
+
+16. Final Expected System
+
+The final system should work like this:
+
+                    SALES ATTENDANCE
+                           │
+             ┌─────────────┴─────────────┐
+             │                           │
+        EMPLOYEE                       ADMIN
+             │                           │
+         Start Day                    Start Day
+             │                           │
+         Supabase                     Supabase
+             │                           │
+          Tracking                    Tracking
+             │                           │
+         End Day                     End Day
+             │                           │
+         Supabase                     Supabase
+             │                           │
+        COMPLETED                    COMPLETED
+
+
+And for an unattended active record:
+
+ACTIVE
+  ↓
+Auto-close at configured time
+  ↓
+AUTO_CLOSED
+  ↓
+Update Supabase
+
+17. Current Conclusion
+
+The fact that salesperson End Day works means we should not replace the entire attendance system.
+
+The immediate issue to identify is:
+
+Why can getTodayAttendance()
+find the employee's record
+but not correctly process the System Admin's record?
+
+
+The next useful information is the browser console output for:
+
+SYSTEM USER:
+END DAY RECORD:
+
+
+and, if applicable:
+
+END DAY SUPABASE ERROR:
+
+
+Once those values are known, the exact correction can be made without unnecessarily changing the working employee attendance system.
